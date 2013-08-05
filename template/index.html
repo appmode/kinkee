@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title data-push="auto">{{title}}</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" type="text/css" href="/vendor/bootstrap/css/bootstrap.min.css" />
+		<link rel="stylesheet" type="text/css" href="/vendor/jquery.imgareaselect-0.9.10/css/imgareaselect-default.css" />
+		<link rel="stylesheet" type="text/css" href="/css/kinkee.css" />
+		<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+		<script src="/vendor/jquery.imgareaselect-0.9.10/scripts/jquery.imgareaselect.js"></script>
+		<script src="/vendor/jquery.fileUpload/js/vendor/jquery.ui.widget.js"></script>
+        <script src="/vendor/jquery.fileUpload/js/jquery.iframe-transport.js"></script>
+        <script src="/vendor/jquery.fileUpload/js/jquery.fileupload.js"></script>
+        <script src="/vendor/bootstrap/js/bootstrap.min.js"></script>
+        <script src="/vendor/showdown/showdown.js"></script>
+        <script src="/js/w3.js"></script>
+		<script src="/js/kinkee.js"></script>
+		<script src="jsonp"></script>
+    
+	</head>
+	<body>
+		<div id="fb-root"></div>
+		<script data-push="fb-jssdk">{{{fb-jssdk}}}</script>
+		<div id    = "kinkeeEditor" 
+		     class = "kinkeeEditor"
+		     ondragstart = "w3.kinkee.handleDragStart(event);"
+		     ondrop      = "w3.kinkee.handleDrop(event);"
+		     ondragover  = "w3.kinkee.handleDragOver(event);"
+		>
+			<div>
+				<button type="button" class="btn btn-default" onclick="w3.kinkee.loadPage('/api/store/1/json');">Load</button>
+				<button type="button" class="btn btn-default" onclick="w3.kinkee.updateContent();">Update</button>
+				<button type="button" class="btn btn-default" onclick="w3.kinkee.savePage();">Save</button>
+			</div>
+			<div id="kinkeeContentEditor" onclick="w3.kinkee.updateContent();"></div>
+			<form>
+				<input id="kinkeeImageUpload" type="file" name="files[]" data-url="/api/image/index.php" multiple>
+				<input id="kinkeeImageTarget" type="hidden" name="target" value="{{id}}">
+			</form>
+			<div id="kinkeeImageEditor" class="kinkeeImageEditor"></div>
+		</div>
+		<div id="kinkeePage" class="kinkeePage">
+			{{{page}}}
+		</div>
+		
+<!-- Modals -->
+		<!-- imgAreaSelect -->
+		<div class="modal fade" id="kinkeeImgAreaSelectModal">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type         = "button" 
+						        class        = "close" 
+						        data-dismiss = "modal" 
+						        aria-hidden  = "true"
+						>&times;</button>
+						<h4 class="modal-title">Crop image</h4>
+					</div>
+					<div class="modal-body">
+						<img id     = "kinkeeImgAreaSelect" 
+						     class  = "kinkeeImgAreaSelect"
+						     onload = "w3.kinkee.onImgAreaSelectLoad(event)"
+						>
+					</div>
+					<div class="modal-footer">
+						<a href="#" class="btn" data-dismiss = "modal">Close</a>
+						<a href    = "#" 
+						   class   = "btn btn-primary"
+						   onclick = "w3.kinkee.onImgAreaSelectUseCrop(event);"
+						>Crop image</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+<!-- Script -->		
+		<script type="text/javascript">
+			<!--
+				w3.kinkee.editPage();
+			//-->
+		</script>
+	</body>
+</html>
+

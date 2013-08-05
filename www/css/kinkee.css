@@ -1,0 +1,132 @@
+body,
+html
+{
+	position				: relative;
+	height					: 100%;
+	min-height				: 100%;
+	margin					: 0;
+	padding					: 0;
+	margin-top				: 0px;
+	margin-left				: 0px;
+}
+
+.kinkeeEditor
+{
+	position 				: relative;
+	width					: 50%;
+	height					: 100%;
+	overflow				: hidden;
+	float					: left;
+	border-right 			: 2px dashed #4D4D4D;
+	
+	display					: none;
+}
+
+.kinkeeEditor > div:first-child
+{
+	position				: absolute;
+	overflow				: hidden;
+	top						: 5px;
+	left					: 5px;
+	right					: 5px;
+	height					: 45px;
+}
+
+.kinkeeEditor > div:first-child + div
+{
+	position				: absolute;
+	overflow				: auto;
+	top						: 55px;
+	left					: 5px;
+	right					: 5px;
+	bottom					: 210px;
+}
+
+.kinkeeEditor > div:first-child + div > input,
+.kinkeeEditor > div:first-child + div > textarea,
+.kinkeeEditor > div:first-child + div > img,
+.kinkeeEditor > div:first-child + div > div
+{
+	margin-bottom			: 5px;	
+}
+.kinkeeEditor > div:first-child + div > textarea
+{
+	resize					: vertical;
+	height					: 150px;
+}
+
+.kinkeeEditor > form
+{
+	display					: none;
+}
+
+.kinkeeEditor > div:last-child
+{
+	position				: absolute;
+	overflow				: auto;
+	height					: 200px;
+	left					: 5px;
+	right					: 5px;
+	bottom					: 5px;
+	border		 			: 1px solid #4D4D4D;
+}
+
+.kinkeeEditor_imageGallery
+{
+	min-height				: 150px;
+	color					: #555;
+	background-color		: #fff;
+	border					: 1px solid #ccc;
+	border-radius			: 4px;
+	-webkit-box-shadow		: inset 0 1px 1px rgba(0,0,0,0.075);
+	box-shadow				: inset 0 1px 1px rgba(0,0,0,0.075);
+}
+
+.kinkeeEditor_image
+{
+	height					: 80px;
+	color					: #555;
+	background-color		: #fff;
+	border					: 1px solid #ccc;
+	border-radius			: 4px;
+	-webkit-box-shadow		: inset 0 1px 1px rgba(0,0,0,0.075);
+	box-shadow				: inset 0 1px 1px rgba(0,0,0,0.075);
+}
+
+.kinkeeEditor_image > img
+{
+	max-height				: 75px;
+}
+
+.kinkeeImageEditor img,
+.kinkeeEditor_imageGallery img
+{
+	background-color		: #fff;
+	border					: 1px solid #ccc;
+	border-radius			: 4px;
+	-webkit-box-shadow		: inset 0 1px 1px rgba(0,0,0,0.075);
+	box-shadow				: inset 0 1px 1px rgba(0,0,0,0.075);
+	height					: 75px;
+	padding					: 2px;
+	margin					: 2px;
+}
+
+.kinkeeImgAreaSelect
+{
+	position				: relative;
+	max-width				: 100%;
+}
+
+.kinkeeEdit .kinkeeEditor
+{
+	display 				: block;
+}
+
+.kinkeeEdit .kinkeePage
+{
+	position 				: relative;
+	width					: 49%;
+	height					: 100%;
+	overflow				: hidden;
+	float					: right;
+}
