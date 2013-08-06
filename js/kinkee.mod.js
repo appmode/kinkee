@@ -48,15 +48,21 @@ W3_kinkee_module = function()
 	{
 		handles     : true,
 		show        : false,
-		instance    : true
+		instance    : true,
+		parent		: '#kinkeeImgAreaSelectModal .modal-dialog'
 	}
 	
-	this.getURL = function($strType)
+	this.getURL = function($strType, $strPath)
 	{
+		$strPath = $strPath || "";
 		switch ($strType)
 		{
+			case 'image':
+				return "/image/" + this._objPage.id + "/" + $strPath;
 			case 'crop':
-				return "/image/" + this._objPage.id + "/crop/";
+				return "/image/" + this._objPage.id + "/crop/" + $strPath;
+			case 'thumb':
+				return "/image/" + this._objPage.id + "/thumbnail/" + $strPath;
 		}
 	}
 	
@@ -147,8 +153,10 @@ W3_kinkee_module = function()
 		this._objImgAreaSelect = $($elmImage).imgAreaSelect(this._objImgAreaSelectOptions);
 	}
 	
-	this.addImages = function($arrImages)
+	this.addImages = function($arrImages, $elmTarget)
 	{
+		$elmTarget = $elmTarget || this._getElements().imageEditor;
+		
 		var $elmFragment = document.createDocumentFragment();
 		var $elmTemp;
 		var $objImage;
@@ -168,7 +176,7 @@ W3_kinkee_module = function()
 			}
 		}
 		// add images to image editor
-		this._getElements().imageEditor.appendChild($elmFragment);
+		$elmTarget.appendChild($elmFragment);
 	}
 	
 	this.makeImageObject = function($objImage)
@@ -245,10 +253,49 @@ W3_kinkee_module = function()
 	
 	this.updateContentValue = function($elmTarget, $mixValue, $bolUpdateData)
 	{
+		var $elmTemp;
+		var $arrValue;
+		var $strValue;
+		var $elmValue;
 		var $strLabel = $elmTarget.getAttribute('data-content');
 		switch ($elmTarget.getAttribute('data-type'))
 		{
 			case 'imageGallery':
+				// clear content
+				var $elmContent = $elmTarget.querySelector('[data-type="content"]');
+				$elmContent.innerHTML = "";
+				// get template
+				var $elmTemplate = $elmTarget.querySelector('[data-type="template"]');
+				// for each value
+				var i = 0;
+				for ( ; $strValue = $mixValue[i++] ; )
+				{
+//console.log($strValue);
+					// clone template into content
+					$elmTemp = $elmTemplate.cloneNode(true);
+					$elmTemp.setAttribute('data-value', $strValue);
+					$elmContent.appendChild($elmTemp);
+					$arrValue = $elmTemp.querySelectorAll('[data-value]');
+					var n = 0;
+					for ( ; $elmValue = $arrValue[n++] ; )
+					{
+						switch ($elmValue.getAttribute('data-value'))
+						{
+							case 'auto':
+								switch ($elmValue.tagName)
+								{
+									case 'A':
+										$elmValue.href = this.getURL('image', $strValue);
+										break;
+									case 'IMG':
+										$elmValue.src = this.getURL('thumb', $strValue);
+										break;
+								}
+								break;
+						}
+					}
+				}
+				this._setContentValue($strLabel, $mixValue, $bolUpdateData);
 				break;
 			default:
 				switch ($elmTarget.tagName)
@@ -276,7 +323,7 @@ W3_kinkee_module = function()
 			'content' in this._objPage.article &&
 			$strLabel in this._objPage.article.content)
 		{
-			console.log($strLabel, this._objPage.article.content[$strLabel]);
+//			console.log($strLabel, this._objPage.article.content[$strLabel]);
 			return this._objPage.article.content[$strLabel];
 		}
 		return null;
@@ -332,6 +379,7 @@ W3_kinkee_module = function()
 		var $elmTarget;
 		var $elmTemp;
 		var $elmImg;
+		var $elmValue;
 		var i = 0;
 		for ( ; $elmTarget = $arrElements[i++] ; )
 		{
@@ -344,6 +392,18 @@ W3_kinkee_module = function()
 					$elmTemp.className   = "kinkeeEditor_imageGallery";
 					$elmTemp.setAttribute('data-dropTarget', 1);
 					$elmTemp.setAttribute('data-dragAction', 'remove');
+					$elmTemp.setAttribute('data-dropAction', 'updateValue');
+					// fill with images
+					$elmTemp.value = [];
+					$elmValue = $elmTarget.querySelector('[data-type="content"]').firstChild;
+					while($elmValue)
+					{
+						$elmTemp.value.push($elmValue.getAttribute('data-value'));
+						$elmValue = $elmValue.nextSibling;
+					}
+//console.log($elmTemp.value);
+					this.addImages($elmTemp.value, $elmTemp);
+					//TODO!!!! : test if this actually works
 					break;
 				default:
 					switch ($elmTarget.tagName)
@@ -517,6 +577,7 @@ W3_kinkee_module = function()
 		var $strImage  = $elmDrag.getAttribute('data-name');
 		var $strThumb  = $elmDrag.src;
 		var $elmTemp;
+		var $bol
 	
 		if ($strThumb)
 		{
@@ -555,7 +616,7 @@ W3_kinkee_module = function()
 				this.cropImage($elmTarget);
 				
 				// do not remove the source image
-				return;
+				$elmDrag = false;
 			}
 			// drop on image in gallery
 			else if('IMG' == $elmTarget.tagName &&
@@ -566,17 +627,51 @@ W3_kinkee_module = function()
 				
 				// add image to container
 				$elmTarget.parentNode.insertBefore($elmTemp, $elmTarget);
+				
+				// set parent as target
+				$elmTarget = $elmTarget.parentNode;
 			}
 			
-			// remove source image
-			switch ($elmDrag.parentNode.getAttribute('data-dragAction'))
+			this.dragAction($elmDrag);
+			this.dropAction($elmTarget);
+		}
+		//$objEvent.preventDefault();
+	}
+	
+	this.dragAction = function($elmTarget)
+	{
+		if ($elmTarget)
+		{
+			switch ($elmTarget.parentNode.getAttribute('data-dragAction'))
 			{
+				// remove source image
 				case 'remove':
-					$elmDrag.parentNode.removeChild($elmDrag);
+					$elmTarget.parentNode.removeChild($elmTarget);
 					break;
 			}
 		}
-		//$objEvent.preventDefault();
+	}
+	
+	this.dropAction = function($elmTarget)
+	{
+		if ($elmTarget)
+		{
+			switch ($elmTarget.getAttribute('data-dropAction'))
+			{
+				case 'updateValue':
+					$elmTarget.value = [];
+					var $arrValue    = $elmTarget.value;
+					$elmTarget       = $elmTarget.firstChild;
+					while($elmTarget)
+					{
+//						console.log($elmTarget);
+						$arrValue.push($elmTarget.getAttribute('data-name'));
+						$elmTarget = $elmTarget.nextSibling;
+					}
+//console.log($arrValue);
+					break;
+			}
+		}
 	}
 	
 	this.handleDragOver = function($objEvent)
