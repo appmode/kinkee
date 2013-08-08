@@ -355,25 +355,70 @@ class KinkeeUser
 	 *
 	 * @return  string                 the generated token
 	 */
+	public function makeToken($strEmail, $strType, $intExpireInHours=99999)
+	{
+		// generate random token
+		$strToken = $this->generateToken($intExpireInHours);
+		
+		// build data array
+		$arrData  = Array(
+			"email"             => $strEmail,
+			"TOKEN::{$strType}" => $strToken
+		)
+		
+		// update data
+		$this->update($arrData);
+		
+		// return token
+		return $strToken;
+	}
 	
 	//------------------------------------------------------------------------//
-	// makeToken
+	// addToken
 	//------------------------------------------------------------------------//
 	/**
-	 * makeToken()
+	 * addToken()
 	 *
-	 * short_comment
+	 * generates a random token and adds it to a user data array
+	 * 
+	 * The user data array $arrData will be updated and the token string will
+	 * be returned.
 	 *
-	 * long_comment
+	 * @param  array   Data            the user record to add token to
+	 * @param  string  Type            type of token to make
+	 * @param  integer  ExpireInHours  optional number of hours before the 
+	 *                                 token expires.
+	 *                                 default = 99999 (about 11 years)
 	 *
-	 * @param  string  Email       param_description
-	 * @param  string  Type        param_description
-	 * @param  integer  ExpireInHours  optional param_description
-	 *                                 default = 99999
-	 *
-	 * @return  return_type
+	 * @return  string                 the generated token
 	 */
-	public function makeToken($strEmail, $strType, $intExpireInHours=99999)
+	public function addToken(&$arrData, $strType, $intExpireInHours=99999)
+	{
+		// generate random token
+		$strToken = $this->generateToken($intExpireInHours);
+		
+		// add token to data array
+		$arrData["TOKEN::{$strType}"] = $strToken;
+		
+		// return token
+		return $strToken;
+	}
+	
+	//------------------------------------------------------------------------//
+	// generateToken
+	//------------------------------------------------------------------------//
+	/**
+	 * generateToken()
+	 *
+	 * generates a random token
+	 *
+	 * @param  integer  ExpireInHours  optional number of hours before the 
+	 *                                 token expires.
+	 *                                 default = 99999 (about 11 years)
+	 *
+	 * @return  string                 the generated token
+	 */
+	public function generateToken($intExpireInHours=99999)
 	{
 		// generate random token
 		$s = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -384,16 +429,7 @@ class KinkeeUser
 		}
 		
 		// add timestamp to token
-		$strToken .= "-". (string)(time() + ((int)$intExpiry * 3600));
-		
-		// build data array
-		$arrData  = Array(
-			"email"             => $strEmail,
-			"TOKEN::{$strType}" => $strToken
-		)
-		
-		// update data
-		$this->update($arrData);
+		$strToken .= "-". (string)(time() + ((int)$intExpireInHours * 3600));
 		
 		// return token
 		return $strToken;
