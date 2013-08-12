@@ -46,6 +46,14 @@ class KinkeeDataStore
 		ERROR_DATA_LOCK_FAIL           => 'could not lock record'
 	);
 	
+	public static function sanitizeRecordName($strRecord)
+	{
+		$strRecord = preg_replace('/[^a-zA-Z0-9\._]/', '-', $strRecord);
+		$strRecord = trim($strRecord, '.-_');
+		
+		return $strRecord;
+	}
+	
 	public static function recordExists($strSection, $strRecord, $strFileName='json')
 	{
 		$strPath = self::_strBaseDir."/$strSection/$strRecord/$strFileName";

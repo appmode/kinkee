@@ -27,8 +27,12 @@ define("ERROR_USER_TOKEN_MISSING",             232);
 //----------------------------------------------------------------------------//
 // KinkeeUser Class
 //----------------------------------------------------------------------------//
-class KinkeeUser
-{	
+class KinkeeUser extends KinkeeRecord
+{
+	protected $_strSection       = 'user';
+	
+	protected $_strRecordNameKey = 'email';
+	
 	// error messages
 	private $_arrError = Array(
 		ERROR_USER_EMAIL_MISSING       => 'email address missing',
@@ -47,23 +51,22 @@ class KinkeeUser
 	 * insert()
 	 *
 	 * insert a user record into the file store
-	 *
-	 * if the user already exists an exception will be thrown
 	 * 
-	 * if the password property is set it must be plain text as it will 
-	 * automatically be hashed.
+	 * if a password property exists it will be automatically hashed
 	 *
-	 * @param  array   User        user data to insert
+	 * if the record already exists an exception will be thrown
+	 *
+	 * @param  array   Data        data to insert
 	 *
 	 * @return  void
 	 */
-	public function insert($arrUser)
+	public function insert($arrData)
 	{
-		// get record name
-		$strRecord = $this->getRecordName($arrUser, DATA_MUST_NOT_EXIST);
-		
-		// insert record
-		KinkeeDataStore::insert('user', $strRecord, $arrUser);
+		if (array_key_exists('password', $arrData))
+		{
+			$arrData['password'] = $this->hashPassword($arrData['password']);
+		}
+		parent::insert($arrData);
 	}
 	
 	//------------------------------------------------------------------------//
@@ -73,35 +76,27 @@ class KinkeeUser
 	 * update()
 	 *
 	 * update a user record in the file store
-	 *
-	 * if the user does not already exists an exception will be thrown
 	 * 
-	 * only data which exists as a property in $arrUser will be updated, any
+	 * if a password property exists it will be automatically hashed
+	 *
+	 * if the record does not already exists an exception will be thrown
+	 * 
+	 * only data which exists as a property in $arrData will be updated, any
 	 * other existing data will remain.
 	 * 
 	 * The user record is locked during update.
 	 *
-	 * @param  array   User          user data to be updated
-	 * @param  bool    HashPassword  optional control if the password will be 
-	 *                               hashed (if it is set in $arrUser)
-	 *                               true  = hash password (default)
-	 *                               false = do not hash password
+	 * @param  array   Data          data to be updated
 	 *
 	 * @return  void
 	 */
-	public function update($arrUser)
+	public function update($arrData)
 	{
-		// get record name
-		$strRecord = $this->getRecordName($arrUser, DATA_MUST_EXIST);
-		
-		// hash password
-		if (array_key_exists('password', $arrUser))
+		if (array_key_exists('password', $arrData))
 		{
-			$arrUser['password'] = $this->hashPassword($arrUser['password']);
+			$arrData['password'] = $this->hashPassword($arrData['password']);
 		}
-		
-		// update record
-		KinkeeDataStore::update('user', $strRecord, $arrUser);
+		parent::update($arrData);
 	}
 	
 	//------------------------------------------------------------------------//
@@ -120,11 +115,8 @@ class KinkeeUser
 	 */
 	public function fetch($strEmail, $bolIncludePassword=false)
 	{
-		// get record name
-		$strRecord = $this->getRecordName($strEmail, DATA_MUST_EXIST);
-		
-		// get record
-		$arrData = KinkeeDataStore::readData('user', $strRecord);
+		// fetch record
+		$arrData = parent::fetch($strEmail);
 		
 		// remove password
 		if (true !== $bolIncludePassword)
@@ -162,22 +154,22 @@ class KinkeeUser
 	public function login($strEmail, $strPassword)
 	{
 		// fetch user
-		$arrUser = $this->fetch($strEmail, USER_INCLUDE_PASSWORD);
+		$arrData = $this->fetch($strEmail, USER_INCLUDE_PASSWORD);
 		
 		// fail if user doesn't have a password
-		if (!array_key_exists('password', $arrUser))
+		if (!array_key_exists('password', $arrData))
 		{
 			$this->throwException(ERROR_USER_PASSWORD_MISSING);
 		}
 		
 		// fail if user hasn't verified their email yet
-		if ($this->hasToken($arrUser, USER_TOKEN_VERIFY_EMAIL))
+		if ($this->hasToken($arrData, USER_TOKEN_VERIFY_EMAIL))
 		{
 			$this->throwException(ERROR_USER_EMAIL_NOT_VALIDATED);
 		}
 		
 		// check password matches
-		$strSalt  = $arrUser['password'];
+		$strSalt  = $arrData['password'];
 		$strCrypt = crypt($strPassword, $strSalt);
 		if ($strSalt != $strCrypt)
 		{
@@ -219,20 +211,20 @@ class KinkeeUser
 		try
 		{
 			// get user data
-			$arrUser = $this->fetch($strEmail);
+			$arrData = $this->fetch($strEmail);
 			
 			// validate password reset token
-			$this->validateToken($arrUser, USER_TOKEN_PASSWORD, $strToken);
+			$this->validateToken($arrData, USER_TOKEN_PASSWORD, $strToken);
 			
 			// remove email verification token (if it exists)
 			// user must have a valid email address to get password reset token
-			$this->removeToken($arrUser, USER_TOKEN_VERIFY_EMAIL);
+			$this->removeToken($arrData, USER_TOKEN_VERIFY_EMAIL);
 			
 			// add password to data
-			$arrUser['password'] = $this->hashPassword($strPassword);
+			$arrData['password'] = $this->hashPassword($strPassword);
 
 			// save record
-			KinkeeDataStore::writeData('user', $strRecord, $arrUser);
+			KinkeeDataStore::writeData('user', $strRecord, $arrData);
 		}
 		catch (Exception $e)
 		{
@@ -274,13 +266,13 @@ class KinkeeUser
 		try
 		{
 			// get user data
-			$arrUser = $this->fetch($strEmail);
+			$arrData = $this->fetch($strEmail);
 			
 			// validate password reset token
-			$this->validateToken($arrUser, USER_TOKEN_VERIFY_EMAIL, $strToken);
+			$this->validateToken($arrData, USER_TOKEN_VERIFY_EMAIL, $strToken);
 			
 			// save record
-			KinkeeDataStore::writeData('user', $strRecord, $arrUser);
+			KinkeeDataStore::writeData('user', $strRecord, $arrData);
 		}
 		catch (Exception $e)
 		{
@@ -295,7 +287,7 @@ class KinkeeUser
 		KinkeeDataStore::unlockRecord($refLock);
 		
 		// return user data
-		return $arrUser;
+		return $arrData;
 	}
 
 	//------------------------------------------------------------------------//
@@ -415,7 +407,7 @@ class KinkeeUser
 	public function validateToken($arrData, $strType, $strToken)
 	{
 		// fail if the token doesn't exist
-		if (!$this->hasToken($arrUser, $strType))
+		if (!$this->hasToken($arrData, $strType))
 		{
 			$this->throwException(ERROR_USER_TOKEN_MISSING);
 		}
@@ -507,61 +499,10 @@ class KinkeeUser
 		}
 		return crypt($strPassword, $strSalt);
 	}
-	
-	//------------------------------------------------------------------------//
-	// getRecordName
-	//------------------------------------------------------------------------//
-	/**
-	 * getRecordName()
-	 *
-	 * get the record path for a user
-	 *
-	 * If $bolMustExist is set to true and the user doesn't exist, or set to 
-	 * false and the user does exist, an exception will be thrown.
-	 *
-	 * @param  mixed   User        email address of the user (string) or
-	 *                             user data record (array)
-	 * @param  bool    MustExist   optional specifies if the user must exist
-	 *                             true  = user must exist
-	 *                             false = user must not exist
-	 *                             null  = user may or may not exist (default) 
-	 *
-	 * @return  string             path to the user record
-	 */
-	public function getRecordName($mixUser, $bolMustExist=null)
+		
+	public function makeRecordName($strName)
 	{
-		// allow for email address passed as a string
-		if (is_string($mixUser))
-		{
-			$strEmail = $mixUser;
-		}
-		// throw exception if passed an array wihout an email address
-		elseif (!array_key_exists('email', $mixUser))
-		{
-			$this->throwException(ERROR_USER_EMAIL_MISSING);
-		}
-		// get email address from object
-		else
-		{
-			$strEmail = $mixUser['email'];
-		}
-		
-		// check user record exists
-		if (true === $bolMustExist)
-		{
-			KinkeeDataStore::recordMustExist('user', $strRecord);
-		}
-		// check user record doesn't exist
-		elseif (false === $bolMustExist)
-		{
-			KinkeeDataStore::recordMustNotExist('user', $strRecord);
-		}
-		
-		// make hash of email
-		$strHash = sha1($strEmail);
-		
-		// return path
-		return $strHash;
+		return sha1($strName);
 	}
 	
 	//------------------------------------------------------------------------//
