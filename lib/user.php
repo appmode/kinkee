@@ -27,7 +27,7 @@ define("ERROR_USER_TOKEN_MISSING",             232);
 //----------------------------------------------------------------------------//
 // KinkeeUser Class
 //----------------------------------------------------------------------------//
-class KinkeeUser extends KinkeeRecord
+class KinkeeUser extends KinkeeDataRecord
 {
 	protected $_strSection       = 'user';
 	
