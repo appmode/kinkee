@@ -11,63 +11,34 @@
 // Constants
 //----------------------------------------------------------------------------//
 
-define("USER_MUST_EXIST",       true);
-define("USER_MUST_NOT_EXIST",   false);
-define("HASH_PASSWORD",         true);
+define("USER_INCLUDE_PASSWORD",                true);
 
-define("TOKEN_PASSWORD",        "PASSWORD");
-define("TOKEN_VERIFY_EMAIL",    "VERIFY_EMAIL");
+define("USER_TOKEN_PASSWORD",                  "PASSWORD");
+define("USER_TOKEN_VERIFY_EMAIL",              "VERIFY_EMAIL");
 
-define("ERROR_USER_EMAIL_MISSING",             100);
-define("ERROR_USER_PASSWORD_MISSING",          110);
-define("ERROR_USER_PASSWORD_WRONG",            111);
-define("ERROR_USER_USER_EXISTS",               200);
-define("ERROR_USER_USER_NOT_EXISTS",           210);
-define("ERROR_USER_MKDIR_FAIL",                300);
-define("ERROR_USER_SAVE_FAIL",                 400);
-define("ERROR_USER_READ_FAIL",                 450);
-define("ERROR_USER_JSON_ENC_FAIL",             500);
-define("ERROR_USER_JSON_DEC_FAIL",             600);
-define("ERROR_USER_EMAIL_NOT_VALIDATED",       700);
-define("ERROR_USER_TOKEN_INVALID",             800);
-define("ERROR_USER_TOKEN_EXPIRED",             810);
-define("ERROR_USER_TOKEN_MISSING",             820);
-
-define("ERROR_USER_LOCK_FAIL",                 999);
-
+define("ERROR_USER_EMAIL_MISSING",             200);
+define("ERROR_USER_PASSWORD_MISSING",          210);
+define("ERROR_USER_PASSWORD_WRONG",            211);
+define("ERROR_USER_EMAIL_NOT_VALIDATED",       220);
+define("ERROR_USER_TOKEN_INVALID",             230);
+define("ERROR_USER_TOKEN_EXPIRED",             231);
+define("ERROR_USER_TOKEN_MISSING",             232);
 
 //----------------------------------------------------------------------------//
 // KinkeeUser Class
 //----------------------------------------------------------------------------//
 class KinkeeUser
-{
-	private $_strBaseDir;
-	
+{	
 	// error messages
 	private $_arrError = Array(
-		ERROR_USER_EMAIL_MISSING       => 'email address missing'),
-		ERROR_USER_PASSWORD_MISSING    => 'password missing'),
-		ERROR_USER_PASSWORD_WRONG      => 'password wrong'),
-		ERROR_USER_USER_EXISTS         => 'user exists',
-		ERROR_USER_USER_NOT_EXISTS     => 'user does not exist',
-		ERROR_USER_MKDIR_FAIL          => 'could not make user folder',
-		ERROR_USER_SAVE_FAIL           => 'save user record failed',
-		ERROR_USER_READ_FAIL           => 'read user record failed',
-		ERROR_USER_JSON_ENC_FAIL       => 'JSON encode failed',
-		ERROR_USER_JSON_DEC_FAIL       => 'JSON decode failed',
+		ERROR_USER_EMAIL_MISSING       => 'email address missing',
+		ERROR_USER_PASSWORD_MISSING    => 'password missing',
+		ERROR_USER_PASSWORD_WRONG      => 'password wrong',
 		ERROR_USER_EMAIL_NOT_VALIDATED => 'email has not been validated',
 		ERROR_USER_TOKEN_INVALID       => 'token is invalid',
 		ERROR_USER_TOKEN_EXPIRED       => 'token has expired',
-		ERROR_USER_TOKEN_MISSING       => 'token does not exist',
-		
-		ERROR_USER_LOCK_FAIL           => 'could not lock user record'
+		ERROR_USER_TOKEN_MISSING       => 'token does not exist'
 	);
-	
-	public function __KinkeeUser($strBaseDir)
-	{
-		// cache the base dir
-		$this->_strBaseDir = rtrim($strBaseDir, '/');
-	}
 	
 	//------------------------------------------------------------------------//
 	// insert
@@ -88,8 +59,11 @@ class KinkeeUser
 	 */
 	public function insert($arrUser)
 	{
-		// save data
-		$this->_setData($arrUser, USER_MUST_NOT_EXIST, HASH_PASSWORD);
+		// get record name
+		$strRecord = $this->getRecordName($arrUser, DATA_MUST_NOT_EXIST);
+		
+		// insert record
+		KinkeeDataStore::insert('user', $strRecord, $arrUser);
 	}
 	
 	//------------------------------------------------------------------------//
@@ -115,40 +89,19 @@ class KinkeeUser
 	 *
 	 * @return  void
 	 */
-	public function update($arrUser, $bolHashPassword=true)
+	public function update($arrUser)
 	{
-		// lock folder
-		$refLock = $this->lockFolder($strPath);
+		// get record name
+		$strRecord = $this->getRecordName($arrUser, DATA_MUST_EXIST);
 		
-		try
+		// hash password
+		if (array_key_exists('password', $arrUser))
 		{
-			// get existing user data
-			$arrData = $this->_getData($arrUser['email']);
-			
-			// merge new data -> existing data
-			array_replace($arrData, $arrUser);
-			
-			// if not given a password to save
-			if (!array_key_exists('password', $arrUser))
-			{
-				// don't re-hash password
-				$bolHashPassword = false;
-			}
-			
-			// save data
-			$this->_setData($arrUser, USER_MUST_EXIST, $bolHashPassword);
-		}
-		catch (Exception $e)
-		{
-			// unlock folder
-			$this->unlockFolder($refLock);
-
-			// rethrow exception
-			throw $e;
+			$arrUser['password'] = $this->hashPassword($arrUser['password']);
 		}
 		
-		// unlock folder
-		$this->unlockFolder($refLock);		
+		// update record
+		KinkeeDataStore::update('user', $strRecord, $arrUser);
 	}
 	
 	//------------------------------------------------------------------------//
@@ -165,15 +118,21 @@ class KinkeeUser
 	 *
 	 * @return  array              the user record
 	 */
-	public function fetch($strEmail)
+	public function fetch($strEmail, $bolIncludePassword=false)
 	{
-		// get raw data
-		$arrData = $this->_getData($strEmail);
+		// get record name
+		$strRecord = $this->getRecordName($strEmail, DATA_MUST_EXIST);
+		
+		// get record
+		$arrData = KinkeeDataStore::readData('user', $strRecord);
 		
 		// remove password
-		if (array_key_exists('password', $arrData))
+		if (true !== $bolIncludePassword)
 		{
-			unset($arrData['password']);
+			if (array_key_exists('password', $arrData))
+			{
+				unset($arrData['password']);
+			}
 		}
 		
 		// return data
@@ -203,7 +162,7 @@ class KinkeeUser
 	public function login($strEmail, $strPassword)
 	{
 		// fetch user
-		$arrUser = $this->_getData($strEmail);
+		$arrUser = $this->fetch($strEmail, USER_INCLUDE_PASSWORD);
 		
 		// fail if user doesn't have a password
 		if (!array_key_exists('password', $arrUser))
@@ -212,7 +171,7 @@ class KinkeeUser
 		}
 		
 		// fail if user hasn't verified their email yet
-		if ($this->hasToken($arrUser, TOKEN_VERIFY_EMAIL))
+		if ($this->hasToken($arrUser, USER_TOKEN_VERIFY_EMAIL))
 		{
 			$this->throwException(ERROR_USER_EMAIL_NOT_VALIDATED);
 		}
@@ -250,12 +209,12 @@ class KinkeeUser
 	 * @return  void
 	 */
 	public function resetPassword($strEmail, $strToken, $strPassword)
-	{
-		// get path to user folder
-		$strPath = $this->getFolderPath($strEmail, USER_MUST_EXIST);
+	{		
+		// get record name
+		$strRecord = $this->getRecordName($strEmail, DATA_MUST_EXIST);
 		
-		// lock folder
-		$refLock = $this->lockFolder($strPath);
+		// lock record
+		$refLock = KinkeeDataStore::lockRecord('user', $strRecord);
 		
 		try
 		{
@@ -263,29 +222,29 @@ class KinkeeUser
 			$arrUser = $this->fetch($strEmail);
 			
 			// validate password reset token
-			$this->validateToken($arrUser, TOKEN_PASSWORD, $strToken);
+			$this->validateToken($arrUser, USER_TOKEN_PASSWORD, $strToken);
 			
 			// remove email verification token (if it exists)
 			// user must have a valid email address to get password reset token
-			$this->removeToken($arrUser, TOKEN_VERIFY_EMAIL);
+			$this->removeToken($arrUser, USER_TOKEN_VERIFY_EMAIL);
 			
 			// add password to data
 			$arrUser['password'] = $this->hashPassword($strPassword);
-			
-			// save data
-			$this->_setData($arrUser, USER_MUST_EXIST);
+
+			// save record
+			KinkeeDataStore::writeData('user', $strRecord, $arrUser);
 		}
 		catch (Exception $e)
 		{
-			// unlock folder
-			$this->unlockFolder($refLock);
+			// unlock record
+			KinkeeDataStore::unlockRecord($refLock);
 
 			// rethrow exception
 			throw $e;
 		}
 		
-		// unlock folder
-		$this->unlockFolder($refLock);
+		// unlock record
+		KinkeeDataStore::unlockRecord($refLock);
 	}
 	
 	//------------------------------------------------------------------------//
@@ -305,35 +264,35 @@ class KinkeeUser
 	 * @return  return_type
 	 */
 	public function verifyEmailAddress($strEmail, $strToken)
-	{
-		// get path to user folder
-		$strPath = $this->getFolderPath($strEmail, USER_MUST_EXIST);
+	{		
+		// get record name
+		$strRecord = $this->getRecordName($strEmail, DATA_MUST_EXIST);
 		
-		// lock folder
-		$refLock = $this->lockFolder($strPath);
+		// lock record
+		$refLock = KinkeeDataStore::lockRecord('user', $strRecord);
 		
 		try
 		{
 			// get user data
 			$arrUser = $this->fetch($strEmail);
 			
-			// validate token
-			$this->validateToken($arrUser, TOKEN_VERIFY_EMAIL, $strToken);
+			// validate password reset token
+			$this->validateToken($arrUser, USER_TOKEN_VERIFY_EMAIL, $strToken);
 			
-			// save data
-			$this->_setData($arrUser, USER_MUST_EXIST);
+			// save record
+			KinkeeDataStore::writeData('user', $strRecord, $arrUser);
 		}
 		catch (Exception $e)
 		{
-			// unlock folder
-			$this->unlockFolder($refLock);
+			// unlock record
+			KinkeeDataStore::unlockRecord($refLock);
 
 			// rethrow exception
 			throw $e;
 		}
 		
-		// unlock folder
-		$this->unlockFolder($refLock);
+		// unlock record
+		KinkeeDataStore::unlockRecord($refLock);
 		
 		// return user data
 		return $arrUser;
@@ -550,12 +509,12 @@ class KinkeeUser
 	}
 	
 	//------------------------------------------------------------------------//
-	// getFolderPath
+	// getRecordName
 	//------------------------------------------------------------------------//
 	/**
-	 * getFolderPath()
+	 * getRecordName()
 	 *
-	 * get the folder path for a user
+	 * get the record path for a user
 	 *
 	 * If $bolMustExist is set to true and the user doesn't exist, or set to 
 	 * false and the user does exist, an exception will be thrown.
@@ -567,14 +526,14 @@ class KinkeeUser
 	 *                             false = user must not exist
 	 *                             null  = user may or may not exist (default) 
 	 *
-	 * @return  string             path to the user folder
+	 * @return  string             path to the user record
 	 */
-	public function getFolderPath($mixUser, $bolMustExist=null)
+	public function getRecordName($mixUser, $bolMustExist=null)
 	{
 		// allow for email address passed as a string
 		if (is_string($mixUser))
 		{
-			$strEmail = $mixUser
+			$strEmail = $mixUser;
 		}
 		// throw exception if passed an array wihout an email address
 		elseif (!array_key_exists('email', $mixUser))
@@ -587,81 +546,22 @@ class KinkeeUser
 			$strEmail = $mixUser['email'];
 		}
 		
+		// check user record exists
+		if (true === $bolMustExist)
+		{
+			KinkeeDataStore::recordMustExist('user', $strRecord);
+		}
+		// check user record doesn't exist
+		elseif (false === $bolMustExist)
+		{
+			KinkeeDataStore::recordMustNotExist('user', $strRecord);
+		}
+		
 		// make hash of email
 		$strHash = sha1($strEmail);
 		
-		// get path to user folder
-		$strPath = "{$this->_strBaseDir}/{$strHash}";
-		$strFile = "{$strPath}/json";
-		
-		// make folder if it doesn't exist
-		if (!is_dir($strPath))
-		{
-			if (!mkdir($strPath, 0770)
-			{
-				$this->throwException(ERROR_USER_MKDIR_FAIL);
-			}
-		}
-		
-		// check user file exists
-		if (true === $bolMustExist && !is_file($strFile))
-		{
-			$this->throwException(ERROR_USER_USER_NOT_EXISTS);
-		}
-		// check user file doesn't exist
-		elseif (false === $bolMustExist && is_file($strFile))
-		{
-			$this->throwException(ERROR_USER_USER_EXISTS);
-		}
-		
 		// return path
-		return $strPath;
-	}
-	
-	//------------------------------------------------------------------------//
-	// lockFolder
-	//------------------------------------------------------------------------//
-	/**
-	 * lockFolder()
-	 *
-	 * lock a user folder for write
-	 *
-	 * @param  string  Path        path to the user folder
-	 *
-	 * @return  reference          lock file refference to be passed to the
-	 *                             unlockFolder() method
-	 */
-	public function lockFolder($strPath)
-	{
-		if (!$refLock = fopen("{$strPath}/lock", "r+"))
-		{
-			$this->throwException(ERROR_USER_LOCK_FAIL);
-		}
-		if (!flock($refLock, LOCK_EX))
-		{
-			fclose($refLock);
-			$this->throwException(ERROR_USER_LOCK_FAIL);
-		}
-		return $refLock;
-	}
-	
-	//------------------------------------------------------------------------//
-	// unlockFolder
-	//------------------------------------------------------------------------//
-	/**
-	 * unlockFolder()
-	 *
-	 * unlock a user folder
-	 *
-	 * @param  ref     Lock        lock file refference as returned by the 
-	 *                             lockFolder() method
-	 *
-	 * @return  void
-	 */
-	public function unlockFolder($refLock)
-	{
-		flock($refLock, LOCK_UN);
-		fclose($refLock);
+		return $strHash;
 	}
 	
 	//------------------------------------------------------------------------//
@@ -680,89 +580,6 @@ class KinkeeUser
 	{
 		$strError = $this->_arrError[$intError];
 		throw new KinkeeUserException($strError, $intError);
-	}
-	
-	//------------------------------------------------------------------------//
-	// _getData  (PRIVATE METHOD)
-	//------------------------------------------------------------------------//
-	/**
-	 * _getData()
-	 *
-	 * get a user record from the file store
-	 *
-	 * This is the low level file store function which actually reads from the 
-	 * file store. The user record is returned complete.
-	 *
-	 * @param  string  Email       email address of the user
-	 *
-	 * @return  array              the user record
-	 */
-	private function _getData($strEmail)
-	{			
-		// get path to user folder
-		$strPath = $this->getFolderPath($strEmail, USER_MUST_EXIST);
-		
-		// read file
-		if (!$strData = file_get_contents("{$strPath}/json")
-		{
-			$this->throwException(ERROR_USER_READ_FAIL);
-		}
-		
-		// json decode data
-		if (!$arrData = json_decode($strData, true))
-		{
-			$this->throwException(ERROR_USER_JSON_DEC_FAIL);
-		}
-		
-		// return data
-		return $arrData;
-	}
-	
-	//------------------------------------------------------------------------//
-	// _setData  (PRIVATE METHOD)
-	//------------------------------------------------------------------------//
-	/**
-	 * _setData()
-	 *
-	 * sava a user record in the file store
-	 *
-	 * This is the low level file store function which actually writes to the 
-	 * file store. Any existing values will be overwritten.
-	 *
-	 * @param  array   Data          user data to be saved
-	 * @param  bool    MustExist     optional specifies if the user must exist
-	 *                               true  = user must exist
-	 *                               false = user must not exist
-	 *                               null  = user may or may not exist (default) 
-	 * @param  bool    HashPassword  optional control if the password will be 
-	 *                               hashed (if it is set in $arrUser)
-	 *                               true  = hash password (default)
-	 *                               false = do not hash password
-	 *
-	 * @return  void
-	 */
-	private function _setData($arrData, $bolMustExist=null, $bolHashPassword=false)
-	{
-		// get path to user folder
-		$strPath = $this->getFolderPath($arrData, $bolMustExist);
-		
-		// hash password
-		if (true === $bolHashPassword && array_key_exists('password', $arrData))
-		{
-			$arrUser['password'] = $this->hashPassword($arrData['password']);
-		}
-		
-		// json encode data
-		if (!$strData = json_encode($arrData))
-		{
-			$this->throwException(ERROR_USER_JSON_ENC_FAIL);
-		}
-		
-		// save file
-		if (!file_put_contents("{$strPath}/json", $strData)
-		{
-			$this->throwException(ERROR_USER_SAVE_FAIL);
-		}
 	}
 }
 
