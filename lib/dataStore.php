@@ -31,7 +31,10 @@ define("ERROR_DATA_LOCK_FAIL",            199);
 //----------------------------------------------------------------------------//
 class KinkeeDataStore
 {
-	private static rtrim(dirname(__FILE__), '/')."/../store/";
+	private static $_strBaseDir = rtrim(dirname(__FILE__), '/')."/../store/";
+	
+	private static $_arrLastReadData;
+	private static $_arrLastWriteData;
 	
 	// error messages
 	private static $_arrError = Array(
@@ -56,7 +59,7 @@ class KinkeeDataStore
 	
 	public static function recordExists($strSection, $strRecord, $strFileName='json')
 	{
-		$strPath = self::_strBaseDir."/$strSection/$strRecord/$strFileName";
+		$strPath = self::$_strBaseDir."/$strSection/$strRecord/$strFileName";
 		
 		if (is_file($strPath))
 		{
@@ -74,7 +77,7 @@ class KinkeeDataStore
 		}
 	}
 	
-	public static function recordMustNot($strSection, $strRecord, $strFileName='json')
+	public static function recordMustNotExist($strSection, $strRecord, $strFileName='json')
 	{
 		// check record exists
 		if (true == self::recordExists($strSection, $strRecord, $strFileName))
@@ -98,7 +101,7 @@ class KinkeeDataStore
 	 */
 	public static function lockRecord($strSection, $strRecord)
 	{
-		$strPath = self::_strBaseDir."/$strSection/$strRecord/.lock";
+		$strPath = self::$_strBaseDir."/$strSection/$strRecord/.lock";
 		
 		if (!$refLock = fopen($strPath, "r+"))
 		{
@@ -133,7 +136,7 @@ class KinkeeDataStore
 	
 	public static function readData($strSection, $strRecord, $strFileName='json')
 	{
-		$strPath = self::_strBaseDir."/$strSection/$strRecord/$strFileName";
+		$strPath = self::$_strBaseDir."/$strSection/$strRecord/$strFileName";
 		
 		// read file
 		if (!$strData = file_get_contents($strPath)
@@ -147,13 +150,16 @@ class KinkeeDataStore
 			self::throwException(ERROR_DATA_JSON_DEC_FAIL);
 		}
 		
+		// cache read data
+		self::$_arrLastReadData = $arrData;
+		
 		// return data
 		return $arrData;
 	}
 	
 	public static function writeData($strSection, $strRecord, $arrData, $strFileName='json')
 	{
-		$strPath = self::_strBaseDir."/$strSection/$strRecord";
+		$strPath = self::$_strBaseDir."/$strSection/$strRecord";
 		$strFile = "{$strPath}/$strFileName";
 		
 		// make folder if it doesn't exist
@@ -176,6 +182,19 @@ class KinkeeDataStore
 		{
 			self::throwException(ERROR_DATA_WRITE_FAIL);
 		}
+		
+		// cache write data
+		self::$_arrLastWriteData = $arrData;
+	}
+	
+	public static function getLastReadData()
+	{
+		return self::$_arrLastReadData;
+	}
+	
+	public static function getLastWriteData()
+	{
+		return self::$_arrLastWriteData;
 	}
 	
 	public static function insert($strSection, $strRecord, $arrData, $strFileName='json')
